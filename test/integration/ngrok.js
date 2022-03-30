@@ -1,9 +1,10 @@
-const ngrok = require('ngrok');
-const { parse } = require('url');
+import ngrok from 'ngrok';
 
 const connect = async (port) => {
-  const url = await ngrok.connect(port);
-  return parse(url);
+  const url = await ngrok.connect({
+    addr: port,
+  });
+  return new URL(url);
 };
 
 const disconnect = async () => {
@@ -11,7 +12,7 @@ const disconnect = async () => {
   await ngrok.kill();
 };
 
-module.exports = {
+export {
   connect,
   disconnect,
 };

@@ -1,12 +1,13 @@
-const got = require('got');
-const { join } = require('path');
-const fs = require('fs');
-const { promisify } = require('util');
-const unzipper = require('unzipper');
-const semver = require('semver');
-const debug = require('debug');
+import got from 'got'; // eslint-disable-line import/no-unresolved
+import { join, dirname } from 'path';
+import fs from 'fs';
+import { promisify } from 'util';
+import unzipper from 'unzipper';
+import semver from 'semver';
+import debug from 'debug';
+import { fileURLToPath } from 'url';
 
-const { citizen } = require('../package.json');
+const { citizen } = JSON.parse(fs.readFileSync('./package.json'));
 
 const chmod = promisify(fs.chmod);
 const mkdir = promisify(fs.mkdir);
@@ -17,6 +18,8 @@ const TERRAFORM_VERSIONS = citizen.terraformVersions.map((version) => ({
   version,
 }));
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const PLATFORM = process.platform;
 const TARGET_DIR = join(__dirname, 'terraform-binaries');
 
@@ -36,7 +39,7 @@ const download = async (terraform) => {
   return new Promise((resolve, reject) => {
     if (notExist) {
       log('Start to download terraform');
-      return got.stream(DOWNLOAD_URL)
+      got.stream(DOWNLOAD_URL)
         .pipe(unzipper.Parse())
         .on('entry', (entry) => {
           log('download completed');
@@ -55,14 +58,15 @@ const download = async (terraform) => {
             reject(new Error(`Wrong terraform file for ${terraform.version}`));
           }
         });
+      return;
     }
 
     log('skip to download terraform');
-    return resolve(terraform.release);
+    resolve(terraform.release);
   });
 };
 
-exports.mochaHooks = {
+const mochaHooks = {
   beforeAll: async () => {
     try {
       await mkdir(TARGET_DIR);
@@ -73,3 +77,5 @@ exports.mochaHooks = {
     await Promise.all(TERRAFORM_VERSIONS.map(download));
   },
 };
+
+export default mochaHooks;

@@ -1,8 +1,9 @@
-const Datastore = require('nedb');
-const { v4: uuid } = require('uuid');
-const { join } = require('path');
-const debug = require('debug')('citizen:server:store:nedb');
+import Datastore from 'nedb';
+import { v4 as uuid } from 'uuid';
+import { join } from 'path';
+import Debug from 'debug';
 
+const debug = Debug('citizen:server:store:nedb');
 const dbDir = process.env.CITIZEN_DB_DIR || 'data';
 
 const moduleDbPath = join(dbDir, 'citizen.db');
@@ -16,7 +17,7 @@ const saveModule = (data) => new Promise((resolve, reject) => {
 
   moduleDb.insert(m, (err, newDoc) => {
     if (err) { return reject(err); }
-    debug('saved the module into store: %o', module);
+    debug('saved the module into store: %o', data);
     return resolve(newDoc);
   });
 });
@@ -97,7 +98,7 @@ const saveProvider = (data) => new Promise((resolve, reject) => {
 
   providerDb.insert(p, (err, newDoc) => {
     if (err) { return reject(err); }
-    debug('saved the provider into db: %o', module);
+    debug('saved the provider into db: %o', data);
     return resolve(newDoc);
   });
 });
@@ -154,7 +155,7 @@ const findProviderPackage = (options) => new Promise((resolve, reject) => {
   });
 });
 
-module.exports = {
+export {
   storeType,
   moduleDb,
   saveModule,

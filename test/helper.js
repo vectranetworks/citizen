@@ -1,11 +1,16 @@
-const nock = require('nock');
-const fs = require('fs');
-const tmp = require('tmp');
-const AdmZip = require('adm-zip');
+import nock from 'nock';
+import fs from 'fs';
+import tmp from 'tmp';
+import AdmZip from 'adm-zip';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { genShaSums, sign } = require('../lib/provider/provider');
+import { genShaSums, sign } from '../lib/provider/provider.js';
 
-module.exports = {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const helper = {
   enableMock: ({ modulePath }) => {
     if (process.env.CITIZEN_MOCK_ENABLED) {
       nock('https://s3.amazonaws.com')
@@ -117,3 +122,5 @@ module.exports = {
     });
   }),
 };
+
+export default helper;
