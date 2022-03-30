@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import bodyParser from 'body-parser';
 import helmet from 'helmet';
+import cors from 'cors';
 import { fileURLToPath } from 'url';
 
 import logger from './lib/logger.js';
@@ -16,6 +17,7 @@ import moduleDownload from './routes/download.js';
 const app = express();
 
 app.use(helmet());
+app.use(cors());
 
 // view engine setup
 const __filename = fileURLToPath(import.meta.url);
