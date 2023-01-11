@@ -1,6 +1,6 @@
 # build stage
 FROM node:16 as build
-
+ARG TARGETPLATFORM
 WORKDIR /citizen
 
 COPY package.json .
@@ -9,7 +9,10 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build:linux
+RUN case "$TARGETPLATFORM" in \
+      "linux/arm64") npm run build:linux-arm && mv dist/citizen-linux-a64 /tmp/citizen;; \
+      "linux/amd64") npm run build:linux && mv dist/citizen-linux-x64 /tmp/citizen ;; \
+      esac;
 
 # final stage
 FROM bitnami/minideb as prod
@@ -17,7 +20,7 @@ FROM bitnami/minideb as prod
 LABEL maintainer="outsideris@gmail.com"
 LABEL org.opencontainers.image.source = "https://github.com/outsideris/citizen"
 
-COPY --from=build /citizen/dist/citizen-linux-x64 /usr/local/bin/citizen
+COPY --from=build /tmp/citizen /usr/local/bin/citizen
 
 WORKDIR /citizen
 
