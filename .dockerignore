@@ -2,4 +2,10 @@
 node_modules/
 dist/
 Makefile
-Makefiles/
+.Makefiles/
+.devcontainer/
+.github/
+.pytest_cache/
+pyproject.toml
+README.adoc
+artifact.devops-citizen-base.yml
