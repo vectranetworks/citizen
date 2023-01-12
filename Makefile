@@ -9,7 +9,7 @@
 # If make setup fails with /root/.ssh/config: line 2: Bad configuration option: usekeychain
 # Please add IgnoreUnknown UseKeychain to ~/.ssh/config
 
-# Version 2022-11-25
+# Version 2022-12-27
 
 SHELL := /bin/bash
 
@@ -85,3 +85,7 @@ FIND_EXCLUDE_LOCAL =
 .PHONY: setup_custom
 setup_custom:
 	echo ""
+
+
+#Opt in to snyk scans failing the build if issues are detected in images
+SNYK_FAIL_BUILDS := true
