@@ -1,16 +1,32 @@
 module.exports = {
-  extends: 'airbnb-base',
+  extends: ['airbnb-base', 'plugin:prettier/recommended'],
+  plugins: ['prettier'],
   env: {
-    mocha: true,
+    commonjs: true,
+    es2021: true,
+    node: true,
   },
   globals: {
     verbose: true,
   },
-  plugins: [
-    'mocha',
-  ],
-  rules: {
-    'mocha/no-exclusive-tests': 'error',
-    'no-unused-expressions': ['off'],
+  parserOptions: {
+    ecmaVersion: 'latest',
   },
+  rules: {
+    'prettier/prettier': 'error',
+  },
+  overrides: [
+    {
+      files: ['**/*.spec.js', '**/*.mock.js'],
+      env: {
+        mocha: true,
+      },
+      plugins: ['mocha'],
+      rules: {
+        'mocha/no-exclusive-tests': 'error',
+        'no-unused-expressions': ['off'],
+        'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+      },
+    },
+  ],
 };

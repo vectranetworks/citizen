@@ -3,19 +3,14 @@ const multiparty = require('multiparty');
 
 const logger = require('../lib/logger');
 const { parseHcl } = require('../lib/util');
-const storage = require('../lib/storage');
+const storage = require('../storages/storage');
 const { saveModule, getModuleLatestVersion, findOneModule } = require('../stores/store');
 
 const router = Router();
 
 // register a module with version
 router.post('/:namespace/:name/:provider/:version', (req, res, next) => {
-  const {
-    namespace,
-    name,
-    provider,
-    version,
-  } = req.params;
+  const { namespace, name, provider, version } = req.params;
   const destPath = `${namespace}/${name}/${provider}/${version}`;
   let tarball;
   let filename;

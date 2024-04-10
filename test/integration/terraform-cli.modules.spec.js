@@ -1,21 +1,14 @@
-const https = require('https');
-const fs = require('fs');
-const { promisify } = require('util');
+const https = require('node:https');
+const { writeFile, unlink, mkdir, access } = require('node:fs/promises');
+const { execFile } = require('node:child_process');
+const { join } = require('node:path');
 const { expect } = require('chai');
-const { execFile } = require('child_process');
-const { join } = require('path');
-const rmrf = require('rimraf');
+const { rimraf } = require('rimraf');
 
 const { run, terminate } = require('./registry');
-const { moduleDb } = require('../../stores/store');
+const { getClient } = require('../../stores/store');
 const helper = require('../helper');
 const TERRAFORM_VERSIONS = require('../versions');
-
-const rimraf = promisify(rmrf);
-const writeFile = promisify(fs.writeFile);
-const unlink = promisify(fs.unlink);
-const mkdir = promisify(fs.mkdir);
-const access = promisify(fs.access);
 
 TERRAFORM_VERSIONS.forEach((terraform) => {
   describe(`terraform CLI v${terraform.version} for module`, () => {
@@ -34,7 +27,7 @@ TERRAFORM_VERSIONS.forEach((terraform) => {
 
     after(async () => {
       await terminate(server, terraform.version);
-      await helper.deleteDbAll(moduleDb());
+      await helper.deleteDbAll(getClient());
     });
 
     describe('basic setup', () => {
@@ -58,19 +51,21 @@ TERRAFORM_VERSIONS.forEach((terraform) => {
       });
 
       it('cli should connect the registry server', (done) => {
-        https.get(`${url.href}.well-known/terraform.json`, (res) => {
-          let data = '';
-          res.on('data', (d) => {
-            data += d;
-          });
+        https
+          .get(`${url.href}.well-known/terraform.json`, (res) => {
+            let data = '';
+            res.on('data', (d) => {
+              data += d;
+            });
 
-          res.on('end', () => {
-            data = JSON.parse(data);
-            expect(res.statusCode).to.equal(200);
-            expect(data['modules.v1']).to.equal('/v1/modules/');
-            done();
-          });
-        }).on('error', done);
+            res.on('end', () => {
+              data = JSON.parse(data);
+              expect(res.statusCode).to.equal(200);
+              expect(data['modules.v1']).to.equal('/v1/modules/');
+              done();
+            });
+          })
+          .on('error', done);
       });
 
       it('cli should connect the registry server with terraform-cli', (done) => {
@@ -93,26 +88,23 @@ TERRAFORM_VERSIONS.forEach((terraform) => {
           version = "__MODULE_VERSION__"
         }`;
 
-        execFile(
-          client,
-          ['module', 'citizen-test', 'alb', 'aws', '0.1.0'],
-          { cwd: moduleDir },
-          async (err) => {
-            if (err) { return done(err); }
+        execFile(client, ['module', 'citizen-test', 'alb', 'aws', '0.1.0'], { cwd: moduleDir }, async (err) => {
+          if (err) {
+            return done(err);
+          }
 
-            const content = definition
-              .replace(/__MODULE_ADDRESS__/, `${url.host}/citizen-test/alb/aws`)
-              .replace(/__MODULE_VERSION__/, '0.1.0');
-            await writeFile(definitonFile, content, 'utf8');
-            return done();
-          },
-        );
+          const content = definition
+            .replace(/__MODULE_ADDRESS__/, `${url.host}/citizen-test/alb/aws`)
+            .replace(/__MODULE_VERSION__/, '0.1.0');
+          await writeFile(definitonFile, content, 'utf8');
+          return done();
+        });
       });
 
       after(async () => {
         await unlink(definitonFile);
         await rimraf(join(__dirname, 'fixture', '.terraform'));
-        await helper.deleteDbAll(moduleDb());
+        await helper.deleteDbAll(getClient());
         await rimraf(process.env.CITIZEN_STORAGE_PATH);
       });
 
@@ -120,7 +112,9 @@ TERRAFORM_VERSIONS.forEach((terraform) => {
         const cwd = join(__dirname, 'fixture');
 
         execFile(terraformCli, ['get'], { cwd }, async (err, stdout) => {
-          if (err) { return done(err); }
+          if (err) {
+            return done(err);
+          }
 
           try {
             expect(stdout).to.include('0.1.0');
