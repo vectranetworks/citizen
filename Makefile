@@ -13,58 +13,63 @@
 
 SHELL := /bin/bash
 
-ifndef BUILD_TOOLS_BRANCH
-BUILD_TOOLS_BRANCH := 'master'
-endif
+BUILD_TOOLS_BRANCH ?= 'master'
+BUILD_TOOLS_MAKEFILES_PATH ?=  $(shell pwd)/.Makefiles
 
-# Try to keep this version in-line with .Makfiles/Commands/git.mk
+# Try to keep this version in-line with .Makefiles/Commands/git.mk
 GIT_SETUP := docker run --rm \
 	--workdir /app \
 	-v $(shell pwd):/app \
 	-v ~/.ssh:/root/.ssh:ro \
-	-v /var/run/docker.sock:/var/run/docker.sock \
 	alpine/git:v2.32.0
 
 # after a successful run, the README.md will exist, preventing this target from running
 .PHONY: get_archive
 get_archive:
-	@echo "build-tools label is $(BUILD_TOOLS_BRANCH)"
+	@echo "build-tools branch is $(BUILD_TOOLS_BRANCH)"
+	@echo "build-tools path is $(BUILD_TOOLS_MAKEFILES_PATH)"
+	@mkdir -p $(BUILD_TOOLS_MAKEFILES_PATH)
 	@$(GIT_SETUP) \
 		archive \
 		--format=tar \
 		--remote=ssh://git@sourcecode.vectra.io:7999/sp/build-tools.git \
-		--prefix=.Makefiles/ $(BUILD_TOOLS_BRANCH):Makefiles | tar -xf -; \
+		$(BUILD_TOOLS_BRANCH):Makefiles | tar -xf - -C $(BUILD_TOOLS_MAKEFILES_PATH); \
 	if [ $${PIPESTATUS[0]} -ne 0 ]; then printf "\nDownloading the build-tools repo failed, check the error above or try \"make setup_local\"\n" >&2; exit 1;fi
 
 .PHONY: get_archive_local
 get_archive_local:
-	@echo "build-tools label is $(BUILD_TOOLS_BRANCH)"
-	git \
+	@echo "build-tools branch is $(BUILD_TOOLS_BRANCH)"
+	@echo "build-tools path is $(BUILD_TOOLS_MAKEFILES_PATH)"
+	@mkdir -p $(BUILD_TOOLS_MAKEFILES_PATH)
+	@git \
 		archive \
 		--format=tar \
 		--remote=ssh://git@sourcecode.vectra.io:7999/sp/build-tools.git \
-		--prefix=.Makefiles/ $(BUILD_TOOLS_BRANCH):Makefiles | tar -xf -; \
+		$(BUILD_TOOLS_BRANCH):Makefiles | tar -xf - -C $(BUILD_TOOLS_MAKEFILES_PATH); \
 	if [ $${PIPESTATUS[0]} -ne 0 ]; then printf "\nDownloading the build-tools repo failed, check the error above\n" >&2; exit 1;fi
 
 .PHONY: reset
 reset:
-	rm -rf .Makefiles
+	rm -rf $(BUILD_TOOLS_MAKEFILES_PATH)
 	$(MAKE) setup
 
 .PHONY: reset_local
 reset_local:
-	rm -rf .Makefiles
+	rm -rf $(BUILD_TOOLS_MAKEFILES_PATH)
 	$(MAKE) setup_local
 
 .PHONY: setup
 setup: get_archive setup_custom
-	@echo "Setup complete"
+	$(MAKE) -f Makefile repo_setup_trigger
+	@echo "build-tools setup complete"
 
 .PHONY: setup_local
 setup_local: get_archive_local
-	@echo "Local setup complete"
+	$(MAKE) -f Makefile repo_setup_trigger
+	@echo "build-tools local setup complete"
 
--include .Makefiles/main.mk
+# This comment at the end of the below line is needed to maintain backwards compatability with the old KEEP_KEY for make update
+-include $(BUILD_TOOLS_MAKEFILES_PATH)/main.mk # Makefiles/main.mk
 
 
 # EDIT below this line
@@ -89,3 +94,7 @@ setup_custom:
 
 #Opt in to snyk scans failing the build if issues are detected in images
 SNYK_FAIL_BUILDS := true
+
+
+#Opt in to `make vdg-check` failing the build if Terraform module README.md files are not included or are out of date
+VDG_FAIL_BUILDS := true
