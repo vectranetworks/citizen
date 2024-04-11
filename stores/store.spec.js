@@ -4,14 +4,13 @@ const { expect } = require('chai');
 const {
   init,
   getStoreType,
-  moduleDb,
+  getClient,
   saveModule,
   findAllModules,
   getModuleVersions,
   getModuleLatestVersion,
   findOneModule,
   increaseModuleDownload,
-  providerDb,
   saveProvider,
   findOneProvider,
   findAllProviders,
@@ -20,16 +19,26 @@ const {
 } = require('./store');
 const helper = require('../test/helper');
 
-const storeTypes = ['mongodb', 'nedb'];
+const storeTypes = ['mongodb', 'sqlite', 'mysql'];
 
 storeTypes.forEach((storeType) => {
   describe(`${storeType} store`, async () => {
+    let originDatabaseUrl;
     before(async () => {
+      originDatabaseUrl = process.env.CITIZEN_DATABASE_URL;
+      if (storeType === 'mongodb') {
+        process.env.CITIZEN_DATABASE_URL = 'mongodb://root:citizen@127.0.0.1:27018/citizen?authSource=admin';
+      } else if (storeType === 'mysql') {
+        process.env.CITIZEN_DATABASE_URL = 'mysql://root:citizen@127.0.0.1:3306/citizen';
+      } else if (storeType === 'sqlite') {
+        process.env.CITIZEN_DATABASE_URL = 'file:./dev.db';
+      }
       await init(storeType);
     });
 
     after(async () => {
-      await helper.deleteDbAll(moduleDb(), storeType);
+      await helper.deleteDbAll(getClient());
+      process.env.Citizen_DATABASE_URL = originDatabaseUrl;
     });
 
     it(`should use ${storeType}`, () => {
@@ -39,7 +48,7 @@ storeTypes.forEach((storeType) => {
     describe('module', () => {
       describe('saveModule()', () => {
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should store module meta', async () => {
@@ -53,31 +62,88 @@ storeTypes.forEach((storeType) => {
             description: '',
           });
 
-          expect(result._id).to.exist; // eslint-disable-line no-underscore-dangle
+          expect(result.id).to.exist;
           expect(result.name).to.equal('store-consul');
           expect(result.published_at).to.exist;
           expect(result.downloads).to.equal(0);
+        });
+
+        it('should store module with root and submodule', async () => {
+          const result = await saveModule({
+            namespace: 'store-hashicorp',
+            name: 'store-consul',
+            provider: 'store-aws',
+            version: '0.1.0',
+            owner: 'outsideris',
+            definition: {
+              root: {
+                path: '',
+                name: 'consul',
+                empty: false,
+                inputs: undefined,
+                outputs: {
+                  arn: { name: 'arn', pos: { filename: '<input>', line: 11 } },
+                  dns: { name: 'dns', pos: { filename: '<input>', line: 16 } },
+                  id: { name: 'id', pos: { filename: '<input>', line: 6 } },
+                  name: { name: 'name', pos: { filename: '<input>', line: 1 } },
+                  zone_id: { name: 'zone_id', pos: { filename: '<input>', line: 21 } },
+                },
+                dependencies: [],
+                module_calls: {},
+                resources: {
+                  aws_alb__main: {
+                    mode: 'managed',
+                    type: 'aws_alb',
+                    name: 'main',
+                    provider: { name: 'aws' },
+                    pos: { filename: '<input>', line: 2 },
+                  },
+                },
+              },
+              submodules: [{ name: 'example' }],
+            },
+          });
+
+          expect(result.id).to.exist;
+          expect(result.root).to.be.an.instanceof(Object);
+          expect(result.submodules).to.be.an.instanceof(Object);
         });
       });
 
       describe('findAllModules()', () => {
         before(async () => {
           await saveModule({
-            namespace: 'store-GCP', name: 'store-lb-http', provider: 'store-google', version: '1.0.4', owner: '', source: '', description: '',
+            namespace: 'store-GCP',
+            name: 'store-lb-http',
+            provider: 'store-google',
+            version: '1.0.4',
+            owner: '',
           });
           await saveModule({
-            namespace: 'store-aws-modules', name: 'store-vpc', provider: 'store-aws', version: '1.2.1', owner: '', source: '', description: '',
+            namespace: 'store-aws-modules',
+            name: 'store-vpc',
+            provider: 'store-aws',
+            version: '1.2.1',
+            owner: '',
           });
           await saveModule({
-            namespace: 'store-aws-modules', name: 'store-vpc', provider: 'store-aws', version: '1.5.0', owner: '', source: '', description: '',
+            namespace: 'store-aws-modules',
+            name: 'store-vpc',
+            provider: 'store-aws',
+            version: '1.5.0',
+            owner: '',
           });
           await saveModule({
-            namespace: 'store-aws-modules', name: 'store-vpc', provider: 'store-aws', version: '1.5.1', owner: '', source: '', description: '',
+            namespace: 'store-aws-modules',
+            name: 'store-vpc',
+            provider: 'store-aws',
+            version: '1.5.1',
+            owner: '',
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return all modules', async () => {
@@ -142,18 +208,30 @@ storeTypes.forEach((storeType) => {
       describe('getModuleVersions()', () => {
         before(async () => {
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.2.1', owner: '', source: '', description: '',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.2.1',
+            owner: '',
           });
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.0', owner: '', source: '', description: '',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.0',
+            owner: '',
           });
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.1', owner: '', source: '', description: '',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.1',
+            owner: '',
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return available versions', async () => {
@@ -182,15 +260,23 @@ storeTypes.forEach((storeType) => {
       describe('getModuleLatestVersion()', () => {
         before(async () => {
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.0', owner: '', source: '', description: '',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.0',
+            owner: '',
           });
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.1', owner: '', source: '', description: '',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.1',
+            owner: '',
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return latest versions for a specific module', async () => {
@@ -217,12 +303,17 @@ storeTypes.forEach((storeType) => {
       describe('findOneModule()', () => {
         before(async () => {
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.1', owner: '', source: '', description: '', location: 'aws-modules/vpc/aws/1.5.1/module.tar.gz',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.1',
+            owner: '',
+            location: 'aws-modules/vpc/aws/1.5.1/module.tar.gz',
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return the specific module', async () => {
@@ -251,12 +342,17 @@ storeTypes.forEach((storeType) => {
       describe('increaseModuleDownload()', () => {
         before(async () => {
           await saveModule({
-            namespace: 'aws-modules', name: 'vpc', provider: 'aws', version: '1.5.1', owner: '', source: '', description: '', location: 'aws-modules/vpc/aws/1.5.1/module.tar.gz',
+            namespace: 'aws-modules',
+            name: 'vpc',
+            provider: 'aws',
+            version: '1.5.1',
+            owner: '',
+            location: 'aws-modules/vpc/aws/1.5.1/module.tar.gz',
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(moduleDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should increase download count of the module', async () => {
@@ -275,7 +371,7 @@ storeTypes.forEach((storeType) => {
     describe('provider', () => {
       describe('saveProvider()', () => {
         after(async () => {
-          await helper.deleteDbAll(providerDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should store provider meta', async () => {
@@ -298,13 +394,15 @@ storeTypes.forEach((storeType) => {
                 shasum: 'af9c7aa76b7c34d722fc9123208e26b22d60440cb47150dd04733b9b94f4541a',
               },
             ],
-            gpgPublicKeys: [{
-              keyId: 'asdf',
-              asciiArmor: '1234',
-            }],
+            gpgPublicKeys: [
+              {
+                keyId: 'asdf',
+                asciiArmor: '1234',
+              },
+            ],
           });
 
-          expect(result._id).to.exist; // eslint-disable-line no-underscore-dangle
+          expect(result.id).to.exist;
           expect(result.namespace).to.equal('outsider');
           expect(result.type).to.equal('citizen');
           expect(result.published_at).to.exist;
@@ -320,14 +418,20 @@ storeTypes.forEach((storeType) => {
             namespace: 'outsider',
             type: 'citizen',
             version: '1.0.4',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: 'outsider-citizen_1.0.4_linux_amd64.zip', shasum: 'aaabbb1',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: 'outsider-citizen_1.0.4_linux_amd64.zip',
+                shasum: 'aaabbb1',
+              },
+            ],
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(providerDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should find the provider', async () => {
@@ -359,41 +463,65 @@ storeTypes.forEach((storeType) => {
             namespace: 'outsider',
             type: 'citizen',
             version: '1.0.4',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'outsider',
             type: 'citizen',
             version: '1.1.0',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'thirdparty',
             type: 'terraform',
             version: '1.2.0',
-            platforms: [{
-              os: 'windows', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'windows',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'outsider',
             type: 'citizen',
             version: '1.3.0',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(providerDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return all providers', async () => {
@@ -461,32 +589,50 @@ storeTypes.forEach((storeType) => {
             namespace: 'outsider',
             type: 'citizen',
             version: '1.0.4',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'outsider',
             type: 'citizen',
             version: '1.1.0',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'outsider',
             type: 'citizen',
             version: '1.2.0',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(providerDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return available versions', async () => {
@@ -496,9 +642,7 @@ storeTypes.forEach((storeType) => {
           });
 
           expect(result).to.have.property('id').to.equal('outsider/citizen');
-          expect(result).to.have.property('versions')
-            .to.be.an('array')
-            .to.have.lengthOf(3);
+          expect(result).to.have.property('versions').to.be.an('array').to.have.lengthOf(3);
         });
 
         it('should return provider with properties', async () => {
@@ -519,23 +663,35 @@ storeTypes.forEach((storeType) => {
             namespace: 'outsider',
             type: 'citizen',
             version: '1.1.0',
-            platforms: [{
-              os: 'windows', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'windows',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
 
           await saveProvider({
             namespace: 'outsider',
             type: 'citizen',
             version: '1.2.0',
-            platforms: [{
-              os: 'linux', arch: 'amd64', filename: '', shasum: '',
-            }],
+            protocols: ['4.1', '5.0'],
+            platforms: [
+              {
+                os: 'linux',
+                arch: 'amd64',
+                filename: '',
+                shasum: '',
+              },
+            ],
           });
         });
 
         after(async () => {
-          await helper.deleteDbAll(providerDb(), storeType);
+          await helper.deleteDbAll(getClient());
         });
 
         it('should return provider that matched', async () => {

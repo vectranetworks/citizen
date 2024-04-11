@@ -1,31 +1,46 @@
 {
-	"name": "Node.js & Mongo DB",
-	"dockerComposeFile": "docker-compose.yml",
-	"service": "app",
-	"workspaceFolder": "/workspace",
+  "name": "Citizen Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:16-bullseye",
 
-	"settings": {},
+  "settings": {
+    "terminal.integrated.profiles.linux": {
+      "zsh": {
+        "path": "zsh"
+      }
+    },
+    "terminal.integrated.defaultProfile.linux": "zsh"
+  },
 
-	"extensions": [
-		"dbaeumer.vscode-eslint",
-		"mongodb.mongodb-vscode",
-		"asciidoctor.asciidoctor-vscode",
-		"vscodevim.vim"
-	],
+  "features": {
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    }
+  },
 
-	"forwardPorts": [3000, 27017],
+  "extensions": [
+    "dbaeumer.vscode-eslint",
+    "asciidoctor.asciidoctor-vscode",
+    "vscodevim.vim",
+    "GitHub.copilot"
+  ],
 
-	"remoteEnv": {
-		"DATABASE_URL": "postgres://postgres:postgres@localhost:5432/postgres",
-		"CITIZEN_DB_DIR": "./data",
-		"CITIZEN_STORAGE": "s3",
-		"CITIZEN_STORAGE_PATH": "./disk",
-		"CITIZEN_ADDR": "http://127.0.0.1:3000",
-		"CITIZEN_MOCK_ENABLED": true,
-		"CITIZEN_AWS_S3_BUCKET": "kr.ne.outsider.test",
-		"AWS_REGION": "ap-northeast-1",
-		"DEBUG": "citizen:*"
-	},
+  "forwardPorts": [3000],
 
-	"remoteUser": "node"
+  "remoteEnv": {
+    "CITIZEN_DATABASE_TYPE": "sqlite",
+    "CITIZEN_DATABASE_URL": "file:./dev.db",
+    "CITIZEN_STORAGE": "file",
+    "CITIZEN_STORAGE_PATH": "./disk",
+    "CITIZEN_ADDR": "http://127.0.0.1:3000",
+    "CITIZEN_STORAGE_BUCKET": "citizen-test-bucket",
+    "DEBUG": "citizen:*"
+  },
+
+  "postCreateCommand": [
+    "npm install &&",
+    "npm run client &&",
+    "npm run migrate:sqlite"
+  ],
+
+  "remoteUser": "node"
 }

@@ -1,15 +1,12 @@
+const { join } = require('node:path');
+const fs = require('node:fs');
+const { chmod, mkdir, access } = require('node:fs/promises');
 const got = require('got');
-const { join } = require('path');
-const fs = require('fs');
-const { promisify } = require('util');
 const unzipper = require('unzipper');
 const debug = require('debug');
 
 const TERRAFORM_VERSIONS = require('./versions');
 
-const chmod = promisify(fs.chmod);
-const mkdir = promisify(fs.mkdir);
-const access = promisify(fs.access);
 const PLATFORM = process.platform;
 const TARGET_DIR = join(__dirname, 'terraform-binaries');
 
@@ -29,7 +26,8 @@ const download = async (terraform) => {
   return new Promise((resolve, reject) => {
     if (notExist) {
       log('Start to download terraform');
-      got.stream(DOWNLOAD_URL)
+      got
+        .stream(DOWNLOAD_URL)
         .pipe(unzipper.Parse())
         .on('entry', (entry) => {
           log('download completed');
